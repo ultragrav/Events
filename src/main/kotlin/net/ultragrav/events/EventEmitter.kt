@@ -1,12 +1,9 @@
 package net.ultragrav.events
 
-import org.bukkit.event.EventPriority
-
 abstract class EventEmitter<E : Any>(private val clazz: Class<E>) {
-    protected class EventListener<T>(
+    open class EventListener<T>(
         val identifier: String,
         val clazz: Class<T>,
-        val priority: EventPriority,
         private val executor: (T) -> Unit
     ) {
         fun call(event: Any) {
@@ -24,28 +21,26 @@ abstract class EventEmitter<E : Any>(private val clazz: Class<E>) {
 
     inline fun <reified T : E> on(
         identifier: String = "",
-        priority: EventPriority = EventPriority.NORMAL,
         noinline listener: (T) -> Unit
     ) {
-        on(T::class.java, identifier, priority, listener)
+        on(T::class.java, identifier, listener)
     }
 
-    fun <T : E> on(
+    open fun <T : E> on(
         clazz: Class<T>,
         identifier: String = "",
-        priority: EventPriority = EventPriority.NORMAL,
         listener: (T) -> Unit
     ) {
-        if (identifier != "" && byId.containsKey(identifier))
-            throw IllegalArgumentException("Identifier $identifier is already in use")
+        addListener(EventListener(identifier, clazz, listener))
+    }
 
-        val eventListener = EventListener(identifier, clazz, priority, listener)
+    protected fun addListener(listener: EventListener<out E>) {
+        if (listener.identifier != "" && byId.containsKey(listener.identifier))
+            throw IllegalArgumentException("Identifier ${listener.identifier} is already in use")
 
         val list = listeners.getOrPut(clazz) { mutableListOf() }
-        list.add(eventListener)
-        if (identifier != "") byId[identifier] = eventListener
-
-        register(clazz)
+        list.add(listener)
+        if (listener.identifier != "") byId[listener.identifier] = listener
     }
 
     fun off(identifier: String) {
@@ -57,12 +52,10 @@ abstract class EventEmitter<E : Any>(private val clazz: Class<E>) {
 
     fun call(event: E) {
         val calls: List<EventListener<out Any>> = getCalls(event)
-        EventPriority.entries.forEach { priority ->
-            calls.forEach { if (it.priority == priority) it.call(event) }
-        }
+        calls.forEach { it.call(event) }
     }
 
-    protected fun getCalls(event: E): List<EventListener<out Any>> {
+    protected open fun getCalls(event: E): List<EventListener<out Any>> {
         // Get all calls corresponding to event's class and superclasses
         val calls = mutableListOf<EventListener<out Any>>()
         var clz: Class<out Any> = event::class.java
@@ -73,6 +66,4 @@ abstract class EventEmitter<E : Any>(private val clazz: Class<E>) {
         }
         return calls
     }
-
-    protected open fun register(clazz: Class<out E>) {}
 }

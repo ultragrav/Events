@@ -31,20 +31,47 @@ object BukkitEventEmitter : EventEmitter<Event>(Event::class.java), Listener {
         )
     }
 
-    private val callCache = mutableMapOf<Event, List<EventListener<out Any>>>()
+    class BukkitEventListener<T>(
+        identifier: String,
+        clazz: Class<T>,
+        val priority: EventPriority,
+        executor: (T) -> Unit
+    ) : EventListener<T>(identifier, clazz, executor)
+
+    override fun <T : Event> on(clazz: Class<T>, identifier: String, listener: (T) -> Unit) {
+        on(clazz, identifier, EventPriority.NORMAL, listener)
+    }
+
+    inline fun <reified T : Event> on(identifier: String, priority: EventPriority, noinline listener: (T) -> Unit) {
+        on(T::class.java, identifier, priority, listener)
+    }
+
+    fun <T : Event> on(clazz: Class<T>, identifier: String, priority: EventPriority, listener: (T) -> Unit) {
+        addListener(BukkitEventListener(identifier, clazz, priority, listener))
+
+        register(clazz)
+    }
+
+    private val callCache = mutableMapOf<Event, List<BukkitEventListener<out Any>>>()
     private fun listener(priority: EventPriority): RegisteredListener {
         return RegisteredListener(this, { _: Listener, event: Event ->
-            val calls: List<EventListener<out Any>> = callCache[event] ?: getCalls(event).also {
+            val calls: List<BukkitEventListener<out Any>> = callCache[event] ?: getCalls(event).also {
                 callCache[event] = it
             }
-            calls.forEach { if (it.priority == priority) it.call(event) }
+            calls.forEach {
+                if (it.priority == priority) it.call(event)
+            }
             if (priority == EventPriority.MONITOR) {
                 callCache.remove(event)
             }
         }, priority, plugin, false)
     }
 
-    override fun register(clazz: Class<out Event>) {
+    override fun getCalls(event: Event): List<BukkitEventListener<out Any>> {
+        return super.getCalls(event).map { it as BukkitEventListener<out Any> }
+    }
+
+    private fun register(clazz: Class<out Event>) {
         if (!Event::class.java.isAssignableFrom(clazz)) return
 
         processedEventsLock.withLock {
