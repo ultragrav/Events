@@ -87,7 +87,9 @@ object BungeeEventEmitter : EventEmitter<Event>(Event::class.java) {
             it.isAccessible = true
             it.get(eventBus) as MutableMap<Class<*>, MutableMap<Byte, MutableMap<Any, Array<Method>>>>
         }
-        val bake = EventBus::class.java.getDeclaredMethod("bakeHandlers", Class::class.java)
+        val bake = EventBus::class.java.getDeclaredMethod("bakeHandlers", Class::class.java).also {
+            it.isAccessible = true
+        }
 
         register = { clazz, priority ->
             val handler = registeredHandlers.computeIfAbsent(priority) { Handler(priority) }
