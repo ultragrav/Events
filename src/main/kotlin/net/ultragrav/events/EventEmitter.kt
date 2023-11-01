@@ -58,8 +58,8 @@ abstract class EventEmitter<E : Any>(private val clazz: Class<E>) {
     protected open fun getCalls(event: E): List<EventListener<out Any>> {
         // Get all calls corresponding to event's class and superclasses
         val calls = mutableListOf<EventListener<out Any>>()
-        var clz: Class<out Any> = event::class.java
-        while (clazz.isAssignableFrom(clz)) {
+        var clz: Class<out Any>? = event::class.java
+        while (clz != null && clazz.isAssignableFrom(clz)) {
             val list = listeners[clz] ?: emptyList()
             calls.addAll(list)
             clz = clz.superclass

@@ -9,7 +9,7 @@ import org.bukkit.event.player.PlayerEvent
 import java.util.*
 
 class PlayerEventEmitter private constructor() : EventEmitter<Event>(Event::class.java) {
-    override fun register(clazz: Class<out Event>) {
+    fun register(clazz: Class<out Event>) {
         if (!ALLOWED_EVENTS.any { it.isAssignableFrom(clazz) })
             throw IllegalArgumentException("Class $clazz is not a player event")
     }

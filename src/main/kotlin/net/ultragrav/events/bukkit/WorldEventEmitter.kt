@@ -7,7 +7,7 @@ import org.bukkit.event.world.WorldEvent
 import java.util.*
 
 class WorldEventEmitter private constructor() : EventEmitter<Event>(Event::class.java) {
-    override fun register(clazz: Class<out Event>) {
+    fun register(clazz: Class<out Event>) {
         if (!ALLOWED_EVENTS.any { it.isAssignableFrom(clazz) })
             throw IllegalArgumentException("Class $clazz is not a world event")
     }
