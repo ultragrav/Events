@@ -9,9 +9,11 @@ import org.bukkit.event.player.PlayerEvent
 import java.util.*
 
 class PlayerEventEmitter private constructor() : EventEmitter<Event>(Event::class.java) {
-    fun register(clazz: Class<out Event>) {
+    override fun <T : Event> on(clazz: Class<T>, identifier: String, listener: (T) -> Unit) {
         if (!ALLOWED_EVENTS.any { it.isAssignableFrom(clazz) })
-            throw IllegalArgumentException("Class $clazz is not a player event")
+            throw IllegalArgumentException("Class $clazz is not a world event")
+
+        super.on(clazz, identifier, listener)
     }
 
     companion object {
