@@ -12,7 +12,7 @@ import java.lang.reflect.Method
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-object BukkitEventEmitter : EventEmitter<Event>(Event::class.java), Listener {
+object BukkitEventEmitter : EventEmitter<Event, BukkitEventEmitter.BukkitEventListener<out Event>>(Event::class.java), Listener {
     private val processedEvents: MutableSet<Class<*>> = HashSet()
     private val processedEventsLock = ReentrantLock()
 
@@ -34,28 +34,19 @@ object BukkitEventEmitter : EventEmitter<Event>(Event::class.java), Listener {
     class BukkitEventListener<T>(
         identifier: String,
         clazz: Class<T>,
-        val priority: EventPriority,
         executor: (T) -> Unit
-    ) : EventListener<T>(identifier, clazz, executor)
-
-    override fun <T : Event> on(clazz: Class<T>, identifier: String, listener: (T) -> Unit) {
-        on(clazz, identifier, EventPriority.NORMAL, listener)
+    ) : EventListener<T>(BukkitEventEmitter, identifier, clazz, executor) {
+        internal var priority: EventPriority = EventPriority.NORMAL
+        fun priority(priority: EventPriority): BukkitEventListener<T> {
+            this.priority = priority
+            return this
+        }
     }
 
-    inline fun <reified T : Event> on(identifier: String, priority: EventPriority, noinline listener: (T) -> Unit) {
-        on(T::class.java, identifier, priority, listener)
-    }
-
-    fun <T : Event> on(clazz: Class<T>, identifier: String, priority: EventPriority, listener: (T) -> Unit) {
-        addListener(BukkitEventListener(identifier, clazz, priority, listener))
-
-        register(clazz)
-    }
-
-    private val callCache = mutableMapOf<Event, List<BukkitEventListener<out Any>>>()
+    private val callCache = mutableMapOf<Event, List<BukkitEventListener<*>>>()
     private fun listener(priority: EventPriority): RegisteredListener {
         return RegisteredListener(this, { _: Listener, event: Event ->
-            val calls: List<BukkitEventListener<out Any>> = callCache[event] ?: getCalls(event).also {
+            val calls: List<BukkitEventListener<*>> = callCache[event] ?: getCalls(event).also {
                 callCache[event] = it
             }
             calls.forEach {
@@ -67,8 +58,25 @@ object BukkitEventEmitter : EventEmitter<Event>(Event::class.java), Listener {
         }, priority, plugin, false)
     }
 
-    override fun getCalls(event: Event): List<BukkitEventListener<out Any>> {
+    override fun getCalls(event: Event): List<BukkitEventListener<*>> {
         return super.getCalls(event).map { it as BukkitEventListener<out Any> }
+    }
+
+    override fun <T : Event> createListener(
+        identifier: String,
+        clazz: Class<T>,
+        listener: (T) -> Unit
+    ): BukkitEventListener<out Event> {
+        return BukkitEventListener(identifier, clazz, listener)
+    }
+
+    override fun <T : Event> on(
+        clazz: Class<T>,
+        identifier: String,
+        listener: (T) -> Unit
+    ): BukkitEventListener<out Event> {
+        register(clazz)
+        return super.on(clazz, identifier, listener)
     }
 
     private fun register(clazz: Class<out Event>) {

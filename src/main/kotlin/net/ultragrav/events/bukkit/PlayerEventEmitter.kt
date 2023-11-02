@@ -8,12 +8,12 @@ import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.player.PlayerEvent
 import java.util.*
 
-class PlayerEventEmitter private constructor() : EventEmitter<Event>(Event::class.java) {
-    override fun <T : Event> on(clazz: Class<T>, identifier: String, listener: (T) -> Unit) {
+class PlayerEventEmitter private constructor() : EventEmitter<Event, EventEmitter.EventListener<*>>(Event::class.java) {
+    override fun <T : Event> on(clazz: Class<T>, identifier: String, listener: (T) -> Unit): EventListener<*> {
         if (!ALLOWED_EVENTS.any { it.isAssignableFrom(clazz) })
             throw IllegalArgumentException("Class $clazz is not a world event")
 
-        super.on(clazz, identifier, listener)
+        return super.on(clazz, identifier, listener)
     }
 
     companion object {

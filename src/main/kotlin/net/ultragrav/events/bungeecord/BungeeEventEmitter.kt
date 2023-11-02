@@ -4,15 +4,14 @@ import net.md_5.bungee.api.ProxyServer
 import net.md_5.bungee.api.plugin.Event
 import net.md_5.bungee.api.plugin.PluginManager
 import net.md_5.bungee.event.EventBus
-import net.md_5.bungee.event.EventPriority
 import net.ultragrav.events.EventEmitter
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-object BungeeEventEmitter : EventEmitter<Event>(Event::class.java) {
-    private class CachedCall(val calls: List<BungeeEventListener<out Any>>, val maxPriority: Byte)
+object BungeeEventEmitter : EventEmitter<Event, BungeeEventEmitter.BungeeEventListener<*>>(Event::class.java) {
+    private class CachedCall(val calls: List<BungeeEventListener<*>>, val maxPriority: Byte)
 
     private val callCache = mutableMapOf<Event, CachedCall>()
 
@@ -39,27 +38,27 @@ object BungeeEventEmitter : EventEmitter<Event>(Event::class.java) {
 
     class BungeeEventListener<T>(
         identifier: String,
-        clazz: Class<T>,
-        val priority: Byte,
+        private val bungeeClazz: Class<out Event>,
         executor: (T) -> Unit
-    ) : EventListener<T>(identifier, clazz, executor)
-
-    override fun <T : Event> on(clazz: Class<T>, identifier: String, listener: (T) -> Unit) {
-        on(clazz, identifier, EventPriority.NORMAL, listener)
+    ) : EventListener<T>(BungeeEventEmitter, identifier, bungeeClazz, executor) {
+        internal var priority: Byte = 0
+        fun priority(priority: Byte): BungeeEventListener<T> {
+            this.priority = priority
+            register(bungeeClazz, priority)
+            return this
+        }
     }
 
-    inline fun <reified T : Event> on(identifier: String, priority: Byte, noinline listener: (T) -> Unit) {
-        on(T::class.java, identifier, priority, listener)
+    override fun getCalls(event: Event): List<BungeeEventListener<*>> {
+        return super.getCalls(event).map { it as BungeeEventListener }
     }
 
-    fun <T : Event> on(clazz: Class<T>, identifier: String, priority: Byte, listener: (T) -> Unit) {
-        addListener(BungeeEventListener(identifier, clazz, priority, listener))
-
-        register(clazz, priority)
-    }
-
-    override fun getCalls(event: Event): List<BungeeEventListener<out Any>> {
-        return super.getCalls(event).map { it as BungeeEventListener<out Any> }
+    override fun <T : Event> createListener(
+        identifier: String,
+        clazz: Class<T>,
+        listener: (T) -> Unit
+    ): BungeeEventListener<T> {
+        return BungeeEventListener(identifier, clazz, listener)
     }
 
     private fun register(clazz: Class<out Event>, priority: Byte) {
@@ -70,11 +69,11 @@ object BungeeEventEmitter : EventEmitter<Event>(Event::class.java) {
             processedEvents[clazz]!!.add(priority)
         }
 
-        register(clazz, priority)
+        internalRegister(clazz, priority)
     }
 
     private val eventBus: EventBus
-    private val register: (Class<*>, Byte) -> Unit
+    private val internalRegister: (Class<*>, Byte) -> Unit
 
     init {
         PluginManager::class.java.getDeclaredField("eventBus").let {
@@ -91,7 +90,7 @@ object BungeeEventEmitter : EventEmitter<Event>(Event::class.java) {
             it.isAccessible = true
         }
 
-        register = { clazz, priority ->
+        internalRegister = { clazz, priority ->
             val handler = registeredHandlers.computeIfAbsent(priority) { Handler(priority) }
 
             map.computeIfAbsent(clazz) { HashMap() }
