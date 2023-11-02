@@ -42,6 +42,11 @@ object BungeeEventEmitter : EventEmitter<Event, BungeeEventEmitter.BungeeEventLi
         executor: (T) -> Unit
     ) : EventListener<T>(BungeeEventEmitter, identifier, bungeeClazz, executor) {
         internal var priority: Byte = 0
+
+        init {
+            register(bungeeClazz, priority)
+        }
+
         fun priority(priority: Byte): BungeeEventListener<T> {
             this.priority = priority
             register(bungeeClazz, priority)
