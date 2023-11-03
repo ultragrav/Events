@@ -1,6 +1,6 @@
 package net.ultragrav.events.bukkit
 
-import net.ultragrav.events.EventEmitter
+import net.ultragrav.events.NormalEventEmitter
 import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.block.BlockBreakEvent
@@ -8,8 +8,8 @@ import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.player.PlayerEvent
 import java.util.*
 
-class PlayerEventEmitter private constructor() : EventEmitter<Event, EventEmitter.EventListener<*>>(Event::class.java) {
-    override fun <T : Event> on(clazz: Class<T>, identifier: String, listener: (T) -> Unit): EventListener<*> {
+class PlayerEventEmitter private constructor() : NormalEventEmitter<Event>(Event::class.java) {
+    override fun <T : Event> on(clazz: Class<T>, identifier: String, listener: (T) -> Unit): EventListener<*, *> {
         if (!ALLOWED_EVENTS.any { it.isAssignableFrom(clazz) })
             throw IllegalArgumentException("Class $clazz is not a world event")
 

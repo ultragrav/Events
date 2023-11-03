@@ -1,15 +1,25 @@
 package net.ultragrav.events
 
-abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*>>(private val clazz: Class<E>) {
-    open class EventListener<T>(
+typealias NormalEventEmitter<E> = EventEmitter<E, EventEmitter.EventListener<*, *>>
+abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*, *>>(private val clazz: Class<E>) {
+    class DefaultEventListener<T>(
+        emitter: EventEmitter<*, *>,
+        identifier: String,
+        clazz: Class<*>,
+        executor: (T) -> Unit
+    ) : EventListener<T, DefaultEventListener<T>>(emitter, identifier, clazz, executor)
+
+    open class EventListener<T, S : EventListener<T, S>>(
         private val emitter: EventEmitter<*, *>,
         val identifier: String,
         val clazz: Class<*>,
         private val executor: (T) -> Unit
     ) {
         private var once = false
-        fun once() {
+        @Suppress("UNCHECKED_CAST")
+        fun once(): S {
             once = true
+            return this as S
         }
 
         internal fun call(event: Any) {
@@ -24,8 +34,8 @@ abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*>>(private 
         }
     }
 
-    private val listeners = mutableMapOf<Class<out E>, MutableList<EventListener<*>>>()
-    private val byId = mutableMapOf<String, EventListener<*>>()
+    private val listeners = mutableMapOf<Class<out E>, MutableList<EventListener<*, *>>>()
+    private val byId = mutableMapOf<String, EventListener<*, *>>()
 
     inline fun <reified T : E> on(
         identifier: String = "",
@@ -50,10 +60,10 @@ abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*>>(private 
         listener: (T) -> Unit
     ): L {
         @Suppress("UNCHECKED_CAST")
-        return EventListener(this, identifier, clazz, listener) as L
+        return DefaultEventListener(this, identifier, clazz, listener) as L
     }
 
-    private fun addListener(listener: EventListener<*>) {
+    private fun addListener(listener: EventListener<*, *>) {
         if (listener.identifier != "" && byId.containsKey(listener.identifier))
             throw IllegalArgumentException("Identifier ${listener.identifier} is already in use")
 
@@ -69,19 +79,19 @@ abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*>>(private 
         listeners[listener.clazz]?.remove(listener)
     }
 
-    fun off(listener: EventListener<*>) {
+    fun off(listener: EventListener<*, *>) {
         if (listener.identifier != "") byId.remove(listener.identifier)
         listeners[listener.clazz]?.remove(listener)
     }
 
     fun call(event: E) {
-        val calls: List<EventListener<*>> = getCalls(event)
+        val calls: List<EventListener<*, *>> = getCalls(event)
         calls.forEach { it.call(event) }
     }
 
-    protected open fun getCalls(event: E): List<EventListener<*>> {
+    protected open fun getCalls(event: E): List<EventListener<*, *>> {
         // Get all calls corresponding to event's class and superclasses
-        val calls = mutableListOf<EventListener<*>>()
+        val calls = mutableListOf<EventListener<*, *>>()
         var clz: Class<out Any>? = event::class.java
         while (clz != null && clazz.isAssignableFrom(clz)) {
             val list = listeners[clz] ?: emptyList()

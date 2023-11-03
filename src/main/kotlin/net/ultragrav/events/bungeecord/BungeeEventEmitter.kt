@@ -40,7 +40,7 @@ object BungeeEventEmitter : EventEmitter<Event, BungeeEventEmitter.BungeeEventLi
         identifier: String,
         private val bungeeClazz: Class<out Event>,
         executor: (T) -> Unit
-    ) : EventListener<T>(BungeeEventEmitter, identifier, bungeeClazz, executor) {
+    ) : EventListener<T, BungeeEventListener<T>>(BungeeEventEmitter, identifier, bungeeClazz, executor) {
         internal var priority: Byte = 0
 
         init {

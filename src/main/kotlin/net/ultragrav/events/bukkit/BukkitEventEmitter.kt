@@ -35,7 +35,7 @@ object BukkitEventEmitter : EventEmitter<Event, BukkitEventEmitter.BukkitEventLi
         identifier: String,
         clazz: Class<T>,
         executor: (T) -> Unit
-    ) : EventListener<T>(BukkitEventEmitter, identifier, clazz, executor) {
+    ) : EventListener<T, BukkitEventListener<T>>(BukkitEventEmitter, identifier, clazz, executor) {
         internal var priority: EventPriority = EventPriority.NORMAL
         fun priority(priority: EventPriority): BukkitEventListener<T> {
             this.priority = priority
@@ -59,7 +59,7 @@ object BukkitEventEmitter : EventEmitter<Event, BukkitEventEmitter.BukkitEventLi
     }
 
     override fun getCalls(event: Event): List<BukkitEventListener<*>> {
-        return super.getCalls(event).map { it as BukkitEventListener<out Any> }
+        return super.getCalls(event).map @Suppress("UNCHECKED_CAST") { it as BukkitEventListener<out Any> }
     }
 
     override fun <T : Event> createListener(
