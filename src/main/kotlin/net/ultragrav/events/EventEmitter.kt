@@ -1,7 +1,7 @@
 package net.ultragrav.events
 
 typealias NormalEventEmitter<E> = EventEmitter<E, EventEmitter.EventListener<*, *>>
-abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*, *>>(private val clazz: Class<E>) {
+abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*, *>>(private val eventClazz: Class<E>) {
     class DefaultEventListener<T>(
         emitter: EventEmitter<*, *>,
         identifier: String,
@@ -34,7 +34,7 @@ abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*, *>>(priva
         }
     }
 
-    private val listeners = mutableMapOf<Class<out E>, MutableList<EventListener<*, *>>>()
+    private val listeners = mutableMapOf<Class<*>, MutableList<EventListener<*, *>>>()
     private val byId = mutableMapOf<String, EventListener<*, *>>()
 
     inline fun <reified T : E> on(
@@ -67,7 +67,7 @@ abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*, *>>(priva
         if (listener.identifier != "" && byId.containsKey(listener.identifier))
             throw IllegalArgumentException("Identifier ${listener.identifier} is already in use")
 
-        val list = listeners.getOrPut(clazz) { mutableListOf() }
+        val list = listeners.getOrPut(listener.clazz) { mutableListOf() }
         list.add(listener)
         if (listener.identifier != "") byId[listener.identifier] = listener
     }
@@ -93,7 +93,7 @@ abstract class EventEmitter<E : Any, L : EventEmitter.EventListener<*, *>>(priva
         // Get all calls corresponding to event's class and superclasses
         val calls = mutableListOf<EventListener<*, *>>()
         var clz: Class<out Any>? = event::class.java
-        while (clz != null && clazz.isAssignableFrom(clz)) {
+        while (clz != null && eventClazz.isAssignableFrom(clz)) {
             val list = listeners[clz] ?: emptyList()
             calls.addAll(list)
             clz = clz.superclass
