@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "1.9.10"
+    `maven-publish`
 }
 
 group = "net.ultragrav"
@@ -14,4 +15,12 @@ repositories {
 dependencies {
     compileOnly("org.spigotmc:spigot-api:1.20.2-R0.1-SNAPSHOT")
     compileOnly("net.md-5:bungeecord-api:1.20-R0.1-SNAPSHOT")
+}
+
+publishing {
+    publications {
+        register("mavenJava", MavenPublication::class) {
+            from(components["java"])
+        }
+    }
 }
